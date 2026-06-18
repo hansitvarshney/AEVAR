@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+venv/
+.env
+.DS_Store
+data/raw/*
+data/processed/*
+data/quarantine/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/quarantine/.gitkeep
+# Prerequisites
+venv/
+.vscode/
+__pycache__/
+*.pyc
+
+# Local Data Storage (Ignore generated artifacts but track the structure)
+data/raw/*
+data/processed/*
+data/quarantine/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/quarantine/.gitkeep
