@@ -1,21 +1,13 @@
-__pycache__/
-*.py[cod]
-venv/
-.env
-.DS_Store
-data/raw/*
-data/processed/*
-data/quarantine/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-!data/quarantine/.gitkeep
-# Prerequisites
+# Prerequisites & IDEs
 venv/
 .vscode/
 __pycache__/
 *.pyc
+.DS_Store
+.env
 
-# Local Data Storage (Ignore generated artifacts but track the structure)
+# Local Data Storage
+# (Ignore the actual generated JSON data chunks, but track structural folders)
 data/raw/*
 data/processed/*
 data/quarantine/*
