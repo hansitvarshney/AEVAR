@@ -8,6 +8,10 @@ class RawInvoiceModel(BaseModel):
     amount: float = Field(..., description="Raw billing total amount")
     status: str = Field(default="PENDING")
     ingested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    # --- ADD THESE TWO LINES HERE ---
+    currency: str = Field(default="USD")
+    invoice_date: str = Field(default="2026-06-01") 
 
     @field_validator("amount", mode="before")
     @classmethod
@@ -19,7 +23,7 @@ class RawInvoiceModel(BaseModel):
             try:
                 value = float(sanitized)
             except ValueError:
-                raise ValueError(f"Could not convert currency string '{value}' to a valid float.")
+                raise ValueError(f"Could not convert currency string '{value}' to whata valid float.")
         if value <= 0:
             raise ValueError(f"Invoice amount must be positive. Got: {value}")
         return value

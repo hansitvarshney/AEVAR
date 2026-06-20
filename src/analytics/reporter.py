@@ -2,66 +2,102 @@ import json
 from pathlib import Path
 from config.settings import PROCESSED_DATA_DIR
 
-def compute_business_metrics():
-    processed_file = PROCESSED_DATA_DIR / "clean_invoices.json"
+def generate_analytics_report():
+    clean_file = PROCESSED_DATA_DIR / "clean_invoices.json"
     
-    if not processed_file.exists():
-        print(f"❌ Analytics Error: No processed data found at {processed_file}")
-        return
+    if not clean_file.exists():
+        return {}
 
-    with open(processed_file, "r") as f:
+    with open(clean_file, "r") as f:
         invoices = json.load(f)
 
     if not invoices:
-        print("⚠️ No valid invoices found to analyze.")
-        return
+        return {}
 
-    # Initialize analytical metrics parameters
+    # Initialize standard corporate metrics aggregates
     total_spend = 0.0
-    vendor_aggregates = {}
-    high_value_alerts = []
-    HIGH_VALUE_THRESHOLD = 40000.0
-
-    for inv in invoices:
-        amount = inv["amount"]
-        vendor = inv["vendor_name"]
-        inv_id = inv["invoice_id"]
-        
-        # Accumulate absolute metrics
-        total_spend += amount
-        
-        # Aggregate stats per vendor
-        if vendor not in vendor_aggregates:
-            vendor_aggregates[vendor] = {"total_spent": 0.0, "invoice_count": 0}
-        
-        vendor_aggregates[vendor]["total_spent"] += amount
-        vendor_aggregates[vendor]["invoice_count"] += 1
-        
-        # Risk & Compliance Check: Flag unusually large corporate expenses
-        if amount >= HIGH_VALUE_THRESHOLD:
-            high_value_alerts.append({"invoice_id": inv_id, "vendor": vendor, "amount": amount})
-
-    # Print a beautiful, clean corporate executive summary dashboard
-    print("\n" + "="*50)
-    print("       📊 EXECUTABLE BUSINESS INTELLIGENCE REPORT      ")
-    print("="*50)
-    print(f" 💰 Total Validated Spend : ${total_spend:,.2f}")
-    print(f" 📑 Total Invoices Settled: {len(invoices)}")
-    print(f" 📈 Average Invoice Value : ${total_spend / len(invoices):,.2f}")
+    vendor_spend_map = {}
+    vendor_counts = {}
+    flagged_high_value_count = 0
     
-    print("\n🏢 VENDOR PERFORMANCE METRICS:")
-    print("-" * 50)
-    for vendor, stats in vendor_aggregates.items():
-        avg_value = stats["total_spent"] / stats["invoice_count"]
-        print(f" • {vendor:<15} | Total: ${stats['total_spent']:>10,.2f} | Count: {stats['invoice_count']:>2} | Avg: ${avg_value:,.2f}")
+    # 🌟 NEW: Statistical data holders for calculating vendor historical metrics
+    vendor_amounts_tracker = {}
+
+    # First pass: Build complete historical cost distribution per individual vendor
+    for item in invoices:
+        amount = item.get("amount", 0.0)
+        vendor = item.get("vendor_name", "Unknown Vendor")
         
-    if high_value_alerts:
-        print("\n🚨 RISK MITIGATION: HIGH-VALUE AUDIT ALERTS (>= $40K)")
-        print("-" * 50)
-        for alert in high_value_alerts:
-            print(f" ⚠️ FLAG: {alert['invoice_id']} | {alert['vendor']:<15} | Requires Sign-off: ${alert['amount']:,.2f}")
+        total_spend += amount
+        vendor_spend_map[vendor] = vendor_spend_map.get(vendor, 0.0) + amount
+        vendor_counts[vendor] = vendor_counts.get(vendor, 0.0) + 1
+        
+        if amount > 40000.0:
+            flagged_high_value_count += 1
             
-    print("="*50 + "\n")
+        if vendor not in vendor_amounts_tracker:
+            vendor_amounts_tracker[vendor] = []
+        vendor_amounts_tracker[vendor].append(amount)
+
+    # 🌟 NEW: Calculate baseline median transaction parameters per vendor
+    vendor_medians = {}
+    for vendor, amounts in vendor_amounts_tracker.items():
+        sorted_amounts = sorted(amounts)
+        n = len(sorted_amounts)
+        if n > 0:
+            median_val = sorted_amounts[n // 2]  # Quick, low-overhead median calculation
+            vendor_medians[vendor] = median_val
+
+    # Second pass: Map risk profiles and tag transaction outliers dynamically
+    enriched_invoices_report = []
+    anomalous_outlier_count = 0
+
+    for item in invoices:
+        enriched_item = item.copy()
+        amount = item.get("amount", 0.0)
+        vendor = item.get("vendor_name", "Unknown Vendor")
+        
+        # Risk Rule: If invoice value is more than double the vendor's baseline cost median
+        vendor_median_baseline = vendor_medians.get(vendor, amount)
+        if amount > (vendor_median_baseline * 2.0) and len(vendor_amounts_tracker.get(vendor, [])) > 1:
+            enriched_item["risk_profile"] = "🚨 High Volatility Spike"
+            enriched_item["is_anomaly"] = True
+            anomalous_outlier_count += 1
+        else:
+            enriched_item["risk_profile"] = "✅ Compliant Baseline"
+            enriched_item["is_anomaly"] = False
+            
+        enriched_invoices_report.append(enriched_item)
+
+    # Compile the final systemic engineering analytics matrix payload
+    analytics_payload = {
+        "summary": {
+            "total_corporate_spend": round(total_spend, 2),
+            "total_active_transactions": len(invoices),
+            "high_value_governance_flags": flagged_high_value_count,
+            "statistical_anomalies_detected": anomalous_outlier_count
+        },
+        "vendor_analytics": {
+            vendor: {
+                "total_allocated_spend": round(spend, 2),
+                "transaction_volume": vendor_counts[vendor],
+                "median_baseline_cost": round(vendor_medians[vendor], 2)
+            }
+            for vendor, spend in vendor_spend_map.items()
+        },
+        "detailed_records": enriched_invoices_report
+    }
+
+    # Persist the final calculated insights asset file down to disk
+    report_file = PROCESSED_DATA_DIR / "analytics_report.json"
+    with open(report_file, "w") as f:
+        json.dump(analytics_payload, f, indent=4)
+
+    return analytics_payload
 
 if __name__ == "__main__":
-    compute_business_metrics()
+    metrics = generate_analytics_report()
+    print("📊 ANALYTICS ENGINE PROCESS COMPLETE 📊")
+    if metrics:
+        print(f" Total Corporate Run-Rate Outlay: ${metrics['summary']['total_corporate_spend']:,}")
+        print(f" Operational Outliers Isolated: {metrics['summary']['statistical_anomalies_detected']}")
