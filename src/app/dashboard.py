@@ -2,12 +2,12 @@ import sys
 from pathlib import Path
 # Force append the parent project root directory workspace directly to the system lookup paths
 sys.path.append(str(Path(__file__).resolve().parents[2]))
+
 import streamlit as st  # standard import alias
 import json
 import pandas as pd
 from datetime import datetime
-from pathlib import Path
-from config.settings import PROCESSED_DATA_DIR, QUARANTINE_DIRs
+from config.settings import PROCESSED_DATA_DIR, QUARANTINE_DIR
 from src.analytics.reporter import generate_analytics_report
 
 # Configure clean enterprise viewport structure
@@ -20,6 +20,7 @@ st.markdown("---")
 clean_file = PROCESSED_DATA_DIR / "clean_invoices.json"
 quarantine_file = QUARANTINE_DIR / "quarantined_invoices.json"
 history_file = PROCESSED_DATA_DIR / "pipeline_history.json"
+audit_report_file = PROCESSED_DATA_DIR / "quarantine_audit_report.json"
 
 # Re-run backend engines dynamically to ensure data synchronization
 analytics_data = generate_analytics_report()
@@ -99,7 +100,7 @@ st.markdown("---")
 # -------------------------------------------------------------------------
 # 🖥️ SECTION 4: INTERACTIVE LEDGER EXPLORER & MULTI-FORMAT EXPORTS
 # -------------------------------------------------------------------------
-tab1, tab2 = st.tabs(["🟢 Verified Corporate Ledger", "🔴 Isolated Quarantine Vault"])
+tab1, tab2 = st.tabs(["🟢 Verified Corporate Ledger", "🔴 Isolated Quarantine Vault (GraphRAG Audited)"])
 
 with tab1:
     st.subheader("Verified & Normalized Transaction Influx")
@@ -121,23 +122,62 @@ with tab1:
         st.info("No clean transaction records present.")
 
 with tab2:
-    st.subheader("Intercepted Structural & Logical Anomalies")
-    if quarantine_file.exists():
-        with open(quarantine_file, "r") as qf:
-            quarantine_records = json.load(qf)
+    st.subheader("🕵️‍♂️ Intercepted Anomalies & Neo4j Context Evaluations")
+    
+    if audit_report_file.exists():
+        with open(audit_report_file, "r") as arf:
+            audit_payload = json.load(arf)
             
-        if quarantine_records:
-            df_quarantine = pd.DataFrame(quarantine_records)
+        meta = audit_payload.get("meta", {})
+        records = audit_payload.get("records", [])
+        
+        if records:
+            # Display localized micro-metrics inside Tab 2 for context clarity
+            sub_col1, sub_col2, sub_col3 = st.columns(3)
+            with sub_col1:
+                st.metric(label="Total Audited Anomalies", value=meta.get("total_audited_records", 0))
+            with sub_col2:
+                st.warning(f"⚠️ Clerical Issues: {meta.get('isolated_clerical_anomalies', 0)}")
+            with sub_col3:
+                st.error(f"🚨 Active Fraud Risks: {meta.get('isolated_security_fraud_risks', 0)}")
+                
+            st.markdown("---")
+            
+            # Flatten and map records arrays cleanly for Streamlit Dataframe consumption
+            display_records = []
+            for r in records:
+                display_records.append({
+                    "Invoice ID": r.get("invoice_id"),
+                    "Vendor Name": r.get("vendor_name"),
+                    "Amount": r.get("raw_amount"),
+                    "Classification": r.get("security_evaluation_type"),
+                    "Validation Triggers": ", ".join(r.get("validation_errors", [])),
+                    "Graph Audit Evaluation": r.get("summary_resolution_notes")
+                })
+                
+            df_quarantine = pd.DataFrame(display_records)
             st.dataframe(df_quarantine, use_container_width=True)
             
             # 📥 Enterprise Feature: CSV Export Mechanism
             csv_quarantine = df_quarantine.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Export Isolated Vault to CSV",
+                label="📥 Export Graph Audited Vault to CSV",
                 data=csv_quarantine,
-                file_name=f"aevar_quarantine_audit_{datetime.now().strftime('%Y%m%d')}.csv",
+                file_name=f"aevar_quarantine_graph_audit_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
+        else:
+            st.success("Pipeline running clean. Quarantine vault contains zero structural errors.")
+            
+    elif quarantine_file.exists():
+        # Fallback to un-audited records view if reporter script hasn't been executed yet
+        with open(quarantine_file, "r") as qf:
+            quarantine_records = json.load(qf)
+            
+        if quarantine_records:
+            st.warning("📊 Showing raw un-audited quarantine entries. Execute your GraphRAG reporter engine to process deep context updates.")
+            df_quarantine = pd.DataFrame(quarantine_records)
+            st.dataframe(df_quarantine, use_container_width=True)
         else:
             st.success("Pipeline running clean. Quarantine vault contains zero structural errors.")
     else:
