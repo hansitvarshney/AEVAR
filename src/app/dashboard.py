@@ -2,13 +2,12 @@ import sys
 from pathlib import Path
 # Force append the parent project root directory workspace directly to the system lookup paths
 sys.path.append(str(Path(__file__).resolve().parents[2]))
-import streamlit as tf
 import streamlit as st  # standard import alias
 import json
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-from config.settings import PROCESSED_DATA_DIR, QUARANTINE_DIR
+from config.settings import PROCESSED_DATA_DIR, QUARANTINE_DIRs
 from src.analytics.reporter import generate_analytics_report
 
 # Configure clean enterprise viewport structure
