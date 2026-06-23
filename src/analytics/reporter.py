@@ -99,14 +99,14 @@ def generate_analytics_report():
 # 2. Append this new autonomous auditing function right below your generate_analytics_report logic
 def audit_quarantine_ledger():
     """
-    Loops through isolated quarantine violations and runs deep context retrieval 
-    against Neo4j to flag structural contractual leakage vs clerical errors.
+    Loops through isolated quarantine violations, runs deep context retrieval 
+    against Neo4j, and persists a structured audit artifact to disk.
     """
     quarantine_file = QUARANTINE_DIR / "quarantined_invoices.json"
     
     if not quarantine_file.exists():
         print("ℹ️ No quarantine ledger entries found to audit.")
-        return
+        return {}
 
     with open(quarantine_file, "r") as f:
         quarantined_entries = json.load(f)
@@ -116,12 +116,16 @@ def audit_quarantine_ledger():
     # Initialize your Neo4j connection
     graph_store = AEVARGraphStore()
     
-    audit_log = []
+    # Trackers for compilation payload
+    detailed_audit_records = []
+    clerical_count = 0
+    fraud_count = 0
     
     for record in quarantined_entries:
         invoice_id = record.get("invoice_id")
         vendor = record.get("vendor_name")
         errors = record.get("errors")
+        amount = record.get("amount")
         
         query = """
         MATCH (v:Vendor) WHERE v.name = $vendor_name
@@ -136,21 +140,59 @@ def audit_quarantine_ledger():
             if record_data and record_data.get("vendor_name"):
                 props = record_data.get("props", {})
                 risk = props.get("risk_rating") or "LOW"
+                
                 # If it's an intentional mock fraud vendor, explicitly override evaluation logic
                 if "corrupted" in vendor.lower() or "fraud" in vendor.lower():
+                    evaluation_type = "FRAUD_RISK"
                     analysis = "🚨 FRAUD RISK: Rogue injection match! Fraudulent entity caught targeting billing ledger."
+                    fraud_count += 1
                 else:
+                    evaluation_type = "CLERICAL_ERROR"
                     analysis = f"⚠️ Clerical Issue: Valid contract vendor found in Graph. Risk Baseline: {risk}"
+                    clerical_count += 1
             else:
+                evaluation_type = "FRAUD_RISK"
                 analysis = "🚨 FRAUD RISK: Unmapped Vendor entity attempting unauthorized ledger injection!"
+                fraud_count += 1
                 
         except Exception as e:
+            evaluation_type = "SYSTEM_ERROR"
             analysis = f"❌ Graph Query Error: {str(e)}"
             
-        # 💥 Now logging the exact validation error triggers explicitly!
+        # Append structured object metadata to compilation array
+        detailed_audit_records.append({
+            "invoice_id": invoice_id,
+            "vendor_name": vendor,
+            "raw_amount": amount,
+            "validation_errors": errors,
+            "security_evaluation_type": evaluation_type,
+            "summary_resolution_notes": analysis
+        })
+            
+        # Log live execution tracking to console stream
         print(f"-> Auditing {invoice_id} | Vendor: {vendor}")
         print(f"   Validation Triggers: {errors}")
         print(f"   Graph Evaluation   : {analysis}\n")
+
+    # Compile the final systemic engineering analytics matrix payload
+    audit_payload = {
+        "meta": {
+            "total_audited_records": len(quarantined_entries),
+            "isolated_clerical_anomalies": clerical_count,
+            "isolated_security_fraud_risks": fraud_count
+        },
+        "records": detailed_audit_records
+    }
+
+    # Persist the final calculated insights asset file down to disk
+    report_file = PROCESSED_DATA_DIR / "quarantine_audit_report.json"
+    with open(report_file, "w") as f:
+        json.dump(audit_payload, f, indent=4)
+        
+    print("🎯 QUARANTINE GRAPH AUDIT SEQUENCE COMPLETE")
+    print(f"📁 Persisted GraphRAG Audit Ledger -> {report_file}\n")
+    
+    return audit_payload
 if __name__ == "__main__":
     # Run Pass 1: Your deterministic baseline report
     metrics = generate_analytics_report()
