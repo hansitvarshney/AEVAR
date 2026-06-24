@@ -1,0 +1,12 @@
+{
+    "risk_assessment_score": 0.75,
+    "executive_summary": "A recent audit of 52 ledger records revealed a significant and critical threat to AEVAR's financial integrity. While 40 anomalies were identified as routine clerical errors from valid contract vendors (primarily negative or null invoice amounts), 12 distinct records represent explicit fraud attempts. These fraudulent injections originate from an unmapped rogue entity, 'Corrupted Inc', actively targeting the billing ledger with negative or null invoice amounts. This pattern indicates a deliberate and malicious attempt to manipulate our accounts payable system.",
+    "fraud_exposure_usd": 6000.0,
+    "critical_action_items": [
+        "Immediately freeze all payments related to 'Corrupted Inc' and initiate a full forensic audit of past transactions involving this entity.",
+        "Enhance pre-payment validation logic to strictly enforce positive, non-null invoice amounts and implement real-time cross-referencing against an approved master vendor list.",
+        "Launch a comprehensive investigation into the origin and methods of 'Corrupted Inc' to identify potential internal or external collusion and prevent future rogue injections.",
+        "Review and strengthen accounts payable security protocols and access controls to mitigate vulnerabilities exploited by such fraudulent attempts."
+    ],
+    "requires_immediate_freeze": true
+}
