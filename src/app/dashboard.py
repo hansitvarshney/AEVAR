@@ -21,9 +21,17 @@ clean_file = PROCESSED_DATA_DIR / "clean_invoices.json"
 quarantine_file = QUARANTINE_DIR / "quarantined_invoices.json"
 history_file = PROCESSED_DATA_DIR / "pipeline_history.json"
 audit_report_file = PROCESSED_DATA_DIR / "quarantine_audit_report.json"
+executive_briefing_file = PROCESSED_DATA_DIR / "executive_briefing.json"
 
-# Re-run backend engines dynamically to ensure data synchronization
-analytics_data = generate_analytics_report()
+# -------------------------------------------------------------------------
+# 🏎️ STABILITY IMPROVEMENT: CACHED METRICS GENERATION
+# -------------------------------------------------------------------------
+@st.cache_data(ttl=30)
+def get_cached_analytics():
+    """Prevents re-running heavy aggregation processing on every UI interaction."""
+    return generate_analytics_report()
+
+analytics_data = get_cached_analytics()
 
 # -------------------------------------------------------------------------
 # 📈 SECTION 1: EXECUTION METRICS LOGGER & PIPELINE HISTORY GRAPH
@@ -98,19 +106,57 @@ with aging_col2:
 st.markdown("---")
 
 # -------------------------------------------------------------------------
-# 🖥️ SECTION 4: INTERACTIVE LEDGER EXPLORER & MULTI-FORMAT EXPORTS
+# 🖥️ SECTION 4: INTERACTIVE LEDGER EXPLORER & SIDEBAR AI AUDITOR
 # -------------------------------------------------------------------------
-tab1, tab2 = st.tabs(["🟢 Verified Corporate Ledger", "🔴 Isolated Quarantine Vault (GraphRAG Audited)"])
+
+# --- SIDEBAR EXECUTIVE AGENT ORCHESTRATION LAYER ---
+with st.sidebar:
+    st.header("🤖 AI Auditor Desk")
+    st.markdown("Autonomous risk intelligence powered by **Gemini-2.5-Flash**.")
+    st.markdown("---")
+    
+    # 🎛️ STABILITY IMPROVEMENT: INTERACTIVE AGENT EXECUTION TRIGGER BUTTON
+    if st.button("🔄 Run Autonomous LLM Audit", use_container_width=True, type="primary"):
+        with st.spinner("Executing Gemini Risk Suite Analysis..."):
+            from src.agents.auditor import run_autonomous_audit
+            run_autonomous_audit()
+            # Clear data cache and refresh the view to instantly update metrics
+            st.cache_data.clear()
+            st.rerun()
+            
+    st.markdown("---")
+    
+    if executive_briefing_file.exists():
+        with open(executive_briefing_file, "r") as ebf:
+            briefing = json.load(ebf)
+            
+        # Display dynamic risk status
+        if briefing.get("requires_immediate_freeze", False):
+            st.error("🚨 EMERGENCY SYSTEM FREEZE ADVISED")
+        else:
+            st.success("🛡️ AP LEDGER PROFILE: SECURE")
+            
+        st.metric(label="Risk Assessment Index", value=f"{briefing.get('risk_assessment_score', 0.0)} / 1.0")
+        st.metric(label="Active Fraud Exposure", value=f"${briefing.get('fraud_exposure_usd', 0.0):,}")
+        
+        st.markdown("### 📝 Executive Summary")
+        st.caption(briefing.get("executive_summary", "No summary found."))
+        
+        st.markdown("### ⚡ Action Directives")
+        for item in briefing.get("critical_action_items", []):
+            st.markdown(f"• `{item}`")
+    else:
+        st.warning("⚠️ No briefing layer found. Trigger an audit run above to initialize.")
+
+# --- MAIN VIEW TRANSACTION TABS ---
+tab1, tab2 = st.tabs(["🟢 Verified Ledger", "🔴 Quarantine Vault (GraphRAG)"])
 
 with tab1:
     st.subheader("Verified & Normalized Transaction Influx")
     if clean_invoices_list:
         df_clean = pd.DataFrame(clean_invoices_list)
-        
-        # Style dataframe to make risk profile tags easily scanable
         st.dataframe(df_clean, use_container_width=True)
         
-        # 📥 Enterprise Feature: CSV Export Mechanism
         csv_clean = df_clean.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Export Verified Ledger to CSV",
@@ -122,8 +168,7 @@ with tab1:
         st.info("No clean transaction records present.")
 
 with tab2:
-    st.subheader("🕵️‍♂️ Intercepted Anomalies & Neo4j Context Evaluations")
-    
+    st.subheader("🕵️‍♂️ Intercepted Anomalies & Neo4j Evaluations")
     if audit_report_file.exists():
         with open(audit_report_file, "r") as arf:
             audit_payload = json.load(arf)
@@ -132,7 +177,6 @@ with tab2:
         records = audit_payload.get("records", [])
         
         if records:
-            # Display localized micro-metrics inside Tab 2 for context clarity
             sub_col1, sub_col2, sub_col3 = st.columns(3)
             with sub_col1:
                 st.metric(label="Total Audited Anomalies", value=meta.get("total_audited_records", 0))
@@ -143,7 +187,6 @@ with tab2:
                 
             st.markdown("---")
             
-            # Flatten and map records arrays cleanly for Streamlit Dataframe consumption
             display_records = []
             for r in records:
                 display_records.append({
@@ -158,7 +201,6 @@ with tab2:
             df_quarantine = pd.DataFrame(display_records)
             st.dataframe(df_quarantine, use_container_width=True)
             
-            # 📥 Enterprise Feature: CSV Export Mechanism
             csv_quarantine = df_quarantine.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Export Graph Audited Vault to CSV",
@@ -168,17 +210,5 @@ with tab2:
             )
         else:
             st.success("Pipeline running clean. Quarantine vault contains zero structural errors.")
-            
-    elif quarantine_file.exists():
-        # Fallback to un-audited records view if reporter script hasn't been executed yet
-        with open(quarantine_file, "r") as qf:
-            quarantine_records = json.load(qf)
-            
-        if quarantine_records:
-            st.warning("📊 Showing raw un-audited quarantine entries. Execute your GraphRAG reporter engine to process deep context updates.")
-            df_quarantine = pd.DataFrame(quarantine_records)
-            st.dataframe(df_quarantine, use_container_width=True)
-        else:
-            st.success("Pipeline running clean. Quarantine vault contains zero structural errors.")
     else:
-        st.success("Quarantine registry sound.")
+        st.info("Execute your GraphRAG reporter engine to process deep context updates.")
